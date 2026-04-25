@@ -5,10 +5,18 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/andrewhowdencom/engram/internal/config"
+	"github.com/andrewhowdencom/engram/pkg/engram"
 	"github.com/spf13/cobra"
 )
+
+// store holds the engram Store instance used by all subcommands.
+// In the prototype this is always a FakeStore. In production it would
+// be injected via Wire.
+var store engram.Store
 
 // Execute runs the CLI.
 func Execute(ctx context.Context) error {
@@ -36,6 +44,15 @@ func NewRootCmd() *cobra.Command {
 				return fmt.Errorf("failed to load configuration: %w", err)
 			}
 
+			// Initialise the fake store with JSON file persistence so that
+			// state (focus, links, stored memories) survives across CLI runs.
+			persistPath := filepath.Join(xdg.DataHome, "engram", "fake-store.json")
+			var err error
+			store, err = engram.NewFakeStoreWithPath(persistPath)
+			if err != nil {
+				return fmt.Errorf("failed to initialise store: %w", err)
+			}
+
 			return nil
 		},
 	}
@@ -43,6 +60,9 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "log level (debug, info, warn, error)")
 
 	cmd.AddCommand(newVersionCmd())
+	cmd.AddCommand(newQueryCmd())
+	cmd.AddCommand(newStoreCmd())
+	cmd.AddCommand(newLinkCmd())
 
 	return cmd
 }
