@@ -88,6 +88,8 @@ Every memory carries temporal markers. Queries can:
 
 Time answers: *"What happened recently?"* and provides temporal narrative when other dimensions are underspecified.
 
+> **Open question: Agent-centric time.** Wall-clock time is independent of agents — an agent suspended for a week experiences no passage, yet its memories age. A more agent-centric model would track time as a linear progression of tokens or operations: the more tokens that have passed since a memory was stored, the less relevant it becomes. We do not yet know how to get agents to track this, but it is a more honest temporal model than calendar time.
+
 ## Primitives
 
 ### Focus — The Agent's Operational Stance

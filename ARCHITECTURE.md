@@ -160,5 +160,6 @@ engram itself replaces the need for static agent context files. Future agents wo
 4. **Embedding models** will be swappable — local sentence-transformers, OpenAI, or custom
 5. **MCP server** will expose the `Store` interface as Model Context Protocol tools
 6. **Multi-agent namespaces** will allow shared and private memory scopes
+7. **Agent-centric time** — Replace wall-clock timestamps with token- or operation-based temporal metrics. An agent suspended for a week experiences no passage; its memories should not age. Tracking "how many tokens since this memory" is more honest than calendar time, though we do not yet know how to instrument agents to report this.
 
 None of these changes require breaking the public API contract.
