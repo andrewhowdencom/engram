@@ -220,6 +220,8 @@ This allows any MCP-compatible agent (Claude, Cursor, etc.) to use engram as its
 
 6. **Pluggable storage**. SQLite by default. PostgreSQL, Redis, or custom backends via interface.
 
+7. **Active writes, passive reads**. Memory writes are a complex, agentic process that may involve enrichment, decomposition, linking, and abstraction hierarchy construction. Memory reads are simple and stable — a `Query` across four dimensions. The memory system provides primitives (`Put`, `Link`) but does not prescribe how writes are enriched. Search behavior (scoring weights, traversal depth, boost curves) is internal and evolving — not part of the public API contract.
+
 ## Current State
 
 engram is in early design and prototype phase.
@@ -235,12 +237,30 @@ The FakeStore is intentionally simple — it exists to let us **feel** the API, 
 
 ## What's Next
 
+### Stable Primitives (Ready to Build Against)
+
+These types and interfaces are the public API contract. They will not change without a major version bump:
+
+- `Memory`, `Query`, `Focus`, `Link` types
+- `Store` interface (`Put`, `Query`, `Link`)
+- Four-dimensional retrieval model
+
+### Evolving Internals (Will Change)
+
+These are prototype implementations that will be replaced or reimplemented:
+
+- `Score()` — weights and boost curves are placeholders
+- `FakeStore` — throwaway in-memory prototype
+- Token-based similarity — replaced by real embedding model
+- Recency decay formula — tunable in future releases
+
+### Future Interfaces (Not Yet Implemented)
+
 - Persistent SQLite backend with vector search (sqlite-vec)
 - Real embedding model integration (local sentence-transformers, OpenAI)
-- MCP server implementation
+- MCP server (`memory_query`, `memory_store`, `memory_link`)
 - Observability (OpenTelemetry spans per Store operation)
 - Multi-agent shared memory (cross-agent context namespaces)
-- Relevance scoring tuning based on real agent workloads
 
 ## Getting Started (Prototype)
 

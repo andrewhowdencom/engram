@@ -1,4 +1,12 @@
 // Package engram provides the core library for managing agent memory.
+//
+// API Stability: The types Memory, Query, Focus, Link, and the Store interface
+// are the public API contract. They change only with major version bumps.
+//
+// Implementation Stability: Score(), FakeStore, and all scoring helpers are
+// prototype implementations. They will change as real embedding models,
+// persistent storage, and tunable scoring are introduced without breaking the
+// public API.
 package engram
 
 import (
