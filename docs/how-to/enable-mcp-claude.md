@@ -4,7 +4,7 @@ This guide shows you how to connect Claude Desktop to engram via the Model Conte
 
 ## Prerequisites
 
-- engram is installed and available on your `PATH`. See the [getting started tutorial](../../tutorials/getting-started.md) or run `go install github.com/andrewhowdencom/engram/cmd/engram@latest`.
+- engram is installed. The `task install:binary` target copies it to `$HOME/.local/bin/engram`. Ensure `$HOME/.local/bin` is on your `PATH`, or use the absolute path in the config below.
 - Claude Desktop is installed. Download it from [claude.ai/download](https://claude.ai/download).
 
 ## 1. Locate the Claude Desktop Config
@@ -35,7 +35,7 @@ Open the config file and add an `engram` entry under the `mcpServers` key:
 }
 ```
 
-- `command` must be the name of the engram binary (use an absolute path if it is not on `PATH`).
+- `command` — name of the engram binary. If `$HOME/.local/bin` is not on your `PATH`, use the absolute path (e.g. `"/home/you/.local/bin/engram"` or `"/Users/you/.local/bin/engram"`).
 - `args` must include `mcp` and `stdio` so that Claude spawns the JSON-RPC stdio transport.
 
 ## 3. Restart Claude Desktop
