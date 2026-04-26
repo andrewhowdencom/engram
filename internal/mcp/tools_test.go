@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andrewhowdencom/engram/internal/store"
 	"github.com/andrewhowdencom/engram/pkg/engram"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMemoryStore(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	handler := MemoryStore(store)
 
 	req := &sdkmcp.CallToolRequest{}
@@ -56,7 +57,7 @@ func TestMemoryStore(t *testing.T) {
 }
 
 func TestMemoryQuery(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	// Seed a memory directly.
 	_, err := store.Put(context.Background(), engram.Memory{
 		Content: []byte("SQLite WAL mode recommended for concurrency"),
@@ -115,7 +116,7 @@ func TestMemoryQuery(t *testing.T) {
 }
 
 func TestMemoryQueryTemporal(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	// Seed an old memory.
 	oldMem := engram.Memory{
 		Content: []byte("Old memory"),
@@ -161,7 +162,7 @@ func TestMemoryQueryTemporal(t *testing.T) {
 }
 
 func TestMemoryLink(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	// Seed two memories.
 	m1, err := store.Put(context.Background(), engram.Memory{
 		Content: []byte("First"),
@@ -217,7 +218,7 @@ func TestMemoryLink(t *testing.T) {
 }
 
 func TestMemoryLinkDefaultType(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	m1, _ := store.Put(context.Background(), engram.Memory{Content: []byte("A")})
 	m2, _ := store.Put(context.Background(), engram.Memory{Content: []byte("B")})
 
@@ -238,7 +239,7 @@ func TestMemoryLinkDefaultType(t *testing.T) {
 }
 
 func TestMemoryLinkMissingMemory(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	handler := MemoryLink(store)
 	req := &sdkmcp.CallToolRequest{}
 
@@ -252,7 +253,7 @@ func TestMemoryLinkMissingMemory(t *testing.T) {
 }
 
 func TestMemoryQueryEmptyResults(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	handler := MemoryQuery(store)
 	req := &sdkmcp.CallToolRequest{}
 
@@ -271,7 +272,7 @@ func TestMemoryQueryEmptyResults(t *testing.T) {
 }
 
 func TestServerInitialization(t *testing.T) {
-	store := engram.NewFakeStore()
+	store := store.NewFakeStore()
 	server := NewServer(store)
 	if server == nil {
 		t.Fatal("expected non-nil server")
