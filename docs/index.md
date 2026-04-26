@@ -16,3 +16,9 @@ engram is a unified memory system for agents. It provides one memory type with f
 For system design and API stability contracts, see [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 For the project overview and quick start, see [README.md](../README.md).
+
+## How-To Guides
+
+- [Enable the engram MCP Server in Claude Desktop](how-to/enable-mcp-claude.md)
+- [Enable the engram MCP Server in OpenCode](how-to/enable-mcp-opencode.md)
+- [Integrate engram as a Go Library](how-to/integrate-as-library.md)
