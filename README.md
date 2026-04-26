@@ -232,7 +232,7 @@ engram is in early design and prototype phase.
 - **FakeStore** provides a query-capable in-memory implementation with rich sample data for API exploration
 - **CLI commands** exist: `query`, `store`, `link`, `version`
 - **Focus** is agent-managed, passed per-query (no store-level focus state)
-- **MCP server** is planned but not yet implemented
+- **MCP server** is implemented with stdio and HTTP/SSE transports
 - **Persistent storage** (SQLite) is the next major milestone
 
 The FakeStore is intentionally simple — it exists to let us **feel** the API, iterate on scoring weights, and validate that the unified model works for real use cases before committing to storage and indexing infrastructure.
@@ -260,7 +260,6 @@ These are prototype implementations that will be replaced or reimplemented:
 
 - Persistent SQLite backend with vector search (sqlite-vec)
 - Real embedding model integration (local sentence-transformers, OpenAI)
-- MCP server (`memory_query`, `memory_store`, `memory_link`)
 - Observability (OpenTelemetry spans per Store operation)
 - Multi-agent shared memory (cross-agent context namespaces)
 
@@ -277,6 +276,12 @@ go build ./cmd/engram
 ./engram query --similar "embeddings" --limit 3
 ./engram query --similar "how do I configure" --focus agent=coder --limit 3
 ./engram query --similar "how do I configure" --focus agent=support-bot --limit 3
+
+# Run MCP server (stdio for Claude Desktop, Cursor, etc.)
+./engram mcp stdio
+
+# Run MCP server over HTTP/SSE
+./engram mcp http --port 8080
 ```
 
 The prototype persists stored memories and links to `~/.local/share/engram/fake-store.json` between runs. Focus is agent-managed and not persisted by the store.

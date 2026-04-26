@@ -63,6 +63,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newQueryCmd())
 	cmd.AddCommand(newStoreCmd())
 	cmd.AddCommand(newLinkCmd())
+	cmd.AddCommand(newMCPCmd())
 
 	return cmd
 }

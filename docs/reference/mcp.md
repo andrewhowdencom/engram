@@ -1,10 +1,28 @@
 # MCP Server Reference
 
-> **Status**: Planned — not yet implemented.
+engram exposes its memory operations as Model Context Protocol (MCP) tools, allowing any MCP-compatible agent to use engram as its memory backend.
 
-engram will expose its memory operations as Model Context Protocol (MCP) tools, allowing any MCP-compatible agent to use engram as its memory backend.
+## Running the Server
 
-## Planned Tools
+### Stdio (JSON-RPC)
+
+The standard transport for local MCP clients such as Claude Desktop and Cursor:
+
+```bash
+engram mcp stdio
+```
+
+### HTTP (Streamable)
+
+For remote or browser-based clients, using the modern streamable HTTP transport (MCP spec 2025-11-25):
+
+```bash
+engram mcp http --port 8080
+```
+
+Binds to `localhost` by default. Use `--port` / `-p` to change the port.
+
+## Tools
 
 ### memory_store
 
@@ -36,7 +54,7 @@ Query memories across all four dimensions with optional focus.
 - `focus` (object, optional) — Agent-managed focus context
 
 **Returns:**
-- `memories` (array) — Ranked memory results, each with `id`, `content`, `context`, `created_at`
+- `memories` (array) — Ranked memory results, each with `id`, `content`, `context`, `links`, `created_at`
 
 ### memory_link
 
@@ -54,6 +72,6 @@ Create a unidirected relationship between two memories.
 
 - Focus is passed per-query as a parameter, not stored server-side. The MCP client (the agent) maintains its own focus state.
 - All tools map directly to the `Store` interface methods.
-- The MCP server will be implemented as a separate binary (`cmd/engram-mcp` or subcommand `engram serve --mcp`).
+- The stdio and HTTP transports share the same persistence path as the CLI (`~/.local/share/engram/fake-store.json` in the prototype).
 
 See [ARCHITECTURE.md](../../ARCHITECTURE.md) for the system design and API stability contract.

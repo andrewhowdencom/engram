@@ -3,10 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/andrewhowdencom/engram/internal/timeutil"
 	"github.com/andrewhowdencom/engram/pkg/engram"
 	"github.com/spf13/cobra"
 )
@@ -113,22 +113,22 @@ func runQuery(
 	}
 
 	tq := &engram.TemporalQuery{OrderBy: orderBy}
-	if after != "" {
-		d, err := parseDuration(after)
-		if err != nil {
-			return fmt.Errorf("invalid --after: %w", err)
+		if after != "" {
+			d, err := timeutil.ParseDuration(after)
+			if err != nil {
+				return fmt.Errorf("invalid --after: %w", err)
+			}
+			t := time.Now().Add(-d)
+			tq.After = &t
 		}
-		t := time.Now().Add(-d)
-		tq.After = &t
-	}
-	if before != "" {
-		d, err := parseDuration(before)
-		if err != nil {
-			return fmt.Errorf("invalid --before: %w", err)
+		if before != "" {
+			d, err := timeutil.ParseDuration(before)
+			if err != nil {
+				return fmt.Errorf("invalid --before: %w", err)
+			}
+			t := time.Now().Add(-d)
+			tq.Before = &t
 		}
-		t := time.Now().Add(-d)
-		tq.Before = &t
-	}
 	q.Temporal = tq
 
 	if len(focusPairs) > 0 {
@@ -175,15 +175,4 @@ func formatLinks(links []engram.Link) string {
 	return strings.Join(parts, ", ")
 }
 
-// parseDuration extends time.ParseDuration with "d" for days.
-func parseDuration(s string) (time.Duration, error) {
-	s = strings.TrimSpace(s)
-	if strings.HasSuffix(s, "d") {
-		days, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
-		if err != nil {
-			return 0, err
-		}
-		return time.Duration(days) * 24 * time.Hour, nil
-	}
-	return time.ParseDuration(s)
-}
+
