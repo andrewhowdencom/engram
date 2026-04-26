@@ -22,7 +22,7 @@ The server exposes three tools:
   memory_link   — create relationships between memories`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			server := mcp.NewServer(store)
-			fmt.Fprintln(cmd.ErrOrStderr(), "engram MCP server starting on stdio...")
+			_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "engram MCP server starting on stdio...")
 			if err := server.Run(cmd.Context(), &sdkmcp.StdioTransport{}); err != nil {
 				return fmt.Errorf("mcp server error: %w", err)
 			}

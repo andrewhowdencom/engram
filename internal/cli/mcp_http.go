@@ -42,7 +42,7 @@ The server exposes three tools:
 
 			server := &http.Server{Addr: addr, Handler: mux}
 
-			fmt.Fprintf(cmd.ErrOrStderr(), "engram MCP streamable HTTP server starting on http://%s\n", addr)
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "engram MCP streamable HTTP server starting on http://%s\n", addr)
 			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				return fmt.Errorf("http server error: %w", err)
 			}

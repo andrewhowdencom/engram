@@ -570,7 +570,7 @@ func (fs *FakeStore) save() error {
 	if fs.persistPath == "" {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(fs.persistPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fs.persistPath), 0o750); err != nil {
 		return err
 	}
 	snap := fakeStoreSnapshot{
@@ -580,7 +580,7 @@ func (fs *FakeStore) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(fs.persistPath, b, 0o644)
+	return os.WriteFile(fs.persistPath, b, 0o600)
 }
 
 func (fs *FakeStore) load() error {

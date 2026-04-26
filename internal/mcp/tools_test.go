@@ -122,7 +122,7 @@ func TestMemoryQueryTemporal(t *testing.T) {
 		Context: map[string]string{"agent": "tester"},
 	}
 	// Manually adjust timestamps after Put.
-	oldMem, err := store.Put(context.Background(), oldMem)
+	_, err := store.Put(context.Background(), oldMem)
 	if err != nil {
 		t.Fatalf("seed error: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestServerInitialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client connect error: %v", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// List tools to verify registration.
 	toolsResult, err := session.ListTools(ctx, &sdkmcp.ListToolsParams{})
