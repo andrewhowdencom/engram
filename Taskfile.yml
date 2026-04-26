@@ -1,0 +1,50 @@
+version: "3"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  setup:
+    desc: Install required tools and dependencies
+    cmds:
+      - go mod download
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+  generate:
+    desc: Generate code as required
+    cmds:
+      - echo "No generators configured"
+
+  build:
+    desc: Compile the application binary
+    cmds:
+      - go build -o engram ./cmd/engram
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: Run code linters
+    cmds:
+      - golangci-lint run
+
+  validate:
+    desc: Run lints, unit tests, smoke tests, and the build
+    deps: [lint, test, build]
+
+  install:binary:
+    desc: Build and install the binary into $HOME/.local/bin
+    deps: [build]
+    cmds:
+      - install -Dm755 engram "$HOME/.local/bin/engram"
+
+  install:service:
+    desc: Install the user systemd service
+    cmds:
+      - install -Dm644 etc/systemd/user/engram-mcp.service "$HOME/.config/systemd/user/engram-mcp.service"
+      - systemctl --user daemon-reload
+      - systemctl --user enable engram-mcp.service
