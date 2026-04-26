@@ -19,23 +19,25 @@ If none exist, create `$HOME/.opencode.json`.
 
 ## 2. Add the engram Server Entry
 
-Open the config file and add an `engram` entry under the `mcpServers` key:
+Open the config file and add an `engram` entry under the `mcp` key:
 
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "engram": {
-      "type": "stdio",
-      "command": "engram",
-      "args": ["mcp", "stdio"],
+      "type": "local",
+      "command": ["engram", "mcp", "stdio"],
+      "enabled": true,
       "env": []
     }
   }
 }
 ```
 
-- `command` — name of the engram binary. If `$HOME/.local/bin` is not on your `PATH`, use the absolute path (e.g. `"/home/you/.local/bin/engram"` or `"/Users/you/.local/bin/engram"`).
-- `type` must be `"stdio"` because OpenCode spawns the MCP server as a child process.
+- `command` — the engram binary and its arguments as an array. If `$HOME/.local/bin` is not on your `PATH`, use the absolute path for the first element (e.g. `"/home/you/.local/bin/engram"` or `"/Users/you/.local/bin/engram"`).
+- `type` must be `"local"` for a locally-installed binary.
+- `enabled` must be `true` for the server to be active.
 - `env` is optional; leave it empty unless you need to pass environment variables.
 
 ## 3. Restart OpenCode
