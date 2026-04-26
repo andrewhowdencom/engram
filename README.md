@@ -8,6 +8,19 @@ It is designed to be consumed as a **Go library**, a **CLI tool**, or an **MCP s
 
 AGPL-3.0
 
+## Table of Contents
+
+- [What is engram?](#what-is-engram)
+- [The Memory Model](#the-memory-model)
+- [The Four Dimensions of Lookup](#the-four-dimensions-of-lookup)
+- [Primitives](#primitives)
+- [Interfaces](#interfaces)
+- [Design Principles](#design-principles)
+- [Current State](#current-state)
+- [What's Next](#whats-next)
+- [Getting Started](#getting-started)
+- [Running as a Service](#running-as-a-service)
+
 ## What is engram?
 
 Most memory systems for agents force you to choose:
@@ -262,6 +275,53 @@ These are prototype implementations that will be replaced or reimplemented:
 - Real embedding model integration (local sentence-transformers, OpenAI)
 - Observability (OpenTelemetry spans per Store operation)
 - Multi-agent shared memory (cross-agent context namespaces)
+
+## Running as a Service
+
+A [systemd user service](examples/systemd/engram-mcp.service) is provided for running the MCP HTTP server in the background.
+
+### Why HTTP instead of stdio?
+
+The `stdio` transport is designed for clients that **spawn** the MCP process directly (Claude Desktop, Cursor, etc.). It communicates over stdin/stdout and exits when the parent disconnects. For a persistent background service, use the **HTTP transport** instead.
+
+### Setup
+
+```bash
+# 1. Build the binary
+go build -o ~/.local/bin/engram ./cmd/engram
+
+# 2. Install the user service file
+mkdir -p ~/.config/systemd/user
+cp examples/systemd/engram-mcp.service ~/.config/systemd/user/
+
+# 3. Reload systemd, enable, and start
+systemctl --user daemon-reload
+systemctl --user enable engram-mcp.service
+systemctl --user start engram-mcp.service
+
+# 4. Verify it's running
+systemctl --user status engram-mcp.service
+curl http://localhost:8080
+```
+
+The service will start automatically on your next login and restart on failure. Logs are available via:
+
+```bash
+journalctl --user -u engram-mcp.service -f
+```
+
+To change the port, edit the `ExecStart` line in the service file:
+
+```ini
+ExecStart=%h/.local/bin/engram mcp http --port 9090
+```
+
+Then reload and restart:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user restart engram-mcp.service
+```
 
 ## Getting Started (Prototype)
 
