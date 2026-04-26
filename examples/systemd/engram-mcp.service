@@ -1,0 +1,22 @@
+[Unit]
+Description=Engram MCP Server (HTTP)
+Documentation=https://github.com/andrewhowdencom/engram
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/engram mcp http --port 8080
+Restart=on-failure
+RestartSec=5
+
+# Resource limits (adjust as needed)
+LimitNOFILE=65536
+
+# Sandboxing
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/engram
+
+[Install]
+WantedBy=default.target
