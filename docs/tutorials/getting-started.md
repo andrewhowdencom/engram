@@ -54,6 +54,22 @@ The prototype comes with pre-loaded sample memories. Query them to understand th
 ./engram link --from <your-memory-id> --to code-1 --type relates_to
 ```
 
+## Step 5: Run the MCP Server
+
+Expose engram to any MCP-compatible agent:
+
+```bash
+# Stdio transport (Claude Desktop, Cursor, etc.)
+./engram mcp stdio
+
+# HTTP streamable transport
+./engram mcp http --port 8080
+```
+
+The server exposes three tools: `memory_store`, `memory_query`, and `memory_link`.
+
+See the [MCP Server Reference](../reference/mcp.md) for full details.
+
 ## What's Next
 
 - Read [What is engram?](../explanation/what-is-engram.md) for the conceptual background
