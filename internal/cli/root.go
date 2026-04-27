@@ -9,6 +9,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/andrewhowdencom/engram/internal/config"
+	istore "github.com/andrewhowdencom/engram/internal/store"
 	"github.com/andrewhowdencom/engram/pkg/engram"
 	"github.com/spf13/cobra"
 )
@@ -44,11 +45,10 @@ func NewRootCmd() *cobra.Command {
 				return fmt.Errorf("failed to load configuration: %w", err)
 			}
 
-			// Initialise the fake store with JSON file persistence so that
-			// state (focus, links, stored memories) survives across CLI runs.
-			persistPath := filepath.Join(xdg.DataHome, "engram", "fake-store.json")
+			// Initialise the SQLite-backed store.
+			persistPath := filepath.Join(xdg.DataHome, "engram", "engram.db")
 			var err error
-			store, err = engram.NewFakeStoreWithPath(persistPath)
+			store, err = istore.NewSQLiteStore(persistPath)
 			if err != nil {
 				return fmt.Errorf("failed to initialise store: %w", err)
 			}
