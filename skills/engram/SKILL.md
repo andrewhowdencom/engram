@@ -30,6 +30,15 @@ DO NOT activate for:
 └── Requests about non-engram memory systems
 ```
 
+### 1.1 Autonomous Memory Review
+
+This skill also governs **background sub-agents** or **self-review processes** that periodically inspect conversations or execution traces to determine what deserves persistence. In such cases, the agent operates as its own reviewer:
+
+1. Scan recent conversation turns for salient facts, decisions, constraints, or corrections.
+2. Apply the same decomposition, context taxonomy, and linking rules as user-initiated writes.
+3. Store atoms using `memory_store` and link them immediately — no deferral.
+4. Mark contradictory or superseded prior memories with `conflicts` or `supersedes` links.
+
 ## 2. Core Principles
 
 ### 2.1 Unified Memory Type
@@ -42,11 +51,34 @@ There is one `Memory` type. Do not create separate ontologies (Event, Fact, Note
 ### 2.3 Agent-Managed Focus
 Focus is **your** operational stance, not the store's. You set it on task/project switches and pass it per-query. Focus multiplies relevance (up to +50%), it does **not** filter results. Non-matching memories remain visible but deprioritized.
 
-## 3. Phase 1: Active Writes — Memory Decomposition Workflow
+## 3. Phase 0: Pre-Task Context Bootstrapping
+
+Before beginning substantive work within a known operational context (project, file, library, or team), **always** execute one or more broad `memory_query` calls to load relevant prior guidance. This prevents redundant decisions, honors existing conventions, and surfaces hidden constraints.
+
+### 3.1 Bootstrapping Query Sequence
+
+Execute these queries in order, stopping when diminishing returns are clear:
+
+1. **Project guidance**: `context_filter: { agent: <you>, project: <current> }`, limit: 10, order: "relevance"
+2. **File-specific patterns**: `context_filter: { agent: <you>, file: <current-file> }`, limit: 5
+3. **Library/framework conventions**: `similar: "<library-name> patterns guidelines"`, focus: { project: <current> }, limit: 5
+4. **Team standards and decisions**: `context_filter: { agent: <you>, topic: "standards" }` OR `similar: "team conventions coding standards"`, limit: 5
+5. **Recent high-priority items**: `context_filter: { agent: <you>, project: <current>, priority: "high" }`, after: "7d", order: "recency", limit: 5
+
+Load retrieved guidance into short-term working memory. Update focus after bootstrapping. If no relevant memories exist, proceed with defaults and store your assumptions as new memories for future agents.
+
+### 3.2 When to Bootstrap
+
+- **Mandatory**: At the start of every new task, project, or file.
+- **Mandatory**: When switching to a different library, framework, or domain.
+- **Recommended**: After any long idle period (>30 minutes) within the same project.
+- **Skip**: During rapid, tight-loop iteration on the same exact file and task.
+
+## 4. Phase 1: Active Writes — Memory Decomposition Workflow
 
 When you receive a complex observation, user preference, task requirement, or decision, follow this numbered checklist **in exact order**:
 
-### 3.1 Decomposition Checklist
+### 4.1 Decomposition Checklist
 
 1. **Identify atomic observations**: Break the input into indivisible facts, constraints, decisions, and action items.
 2. **Estimate token count**: Target ≤ 500 tokens per memory. If an observation exceeds this, decompose further. Override this guidance only when semantic cohesion would be destroyed by splitting (e.g., a single coherent code block).
@@ -57,8 +89,9 @@ When you receive a complex observation, user preference, task requirement, or de
    - Optional but valuable: `status`, `priority`, `decision`, `user`, `session`
 4. **Store each atom sequentially** using `memory_store`. There is no batch API. Each atom is a separate tool call.
 5. **Link immediately** using `memory_link`. Do not defer linking to "later" — context is lost.
+6. **Track complex chains with planning tools**: When a decomposition yields >3 atoms or >3 links, create a todo/planning checklist to track progress. Mark each store and link step complete as executed. This prevents losing intermediate IDs or skipping links in long chains.
 
-### 3.2 Relationship Vocabulary (Prescribed)
+### 4.2 Relationship Vocabulary (Prescribed)
 
 Use **only** these relationship types. Do not invent arbitrary types.
 
@@ -71,7 +104,7 @@ Use **only** these relationship types. Do not invent arbitrary types.
 | `conflicts` | The source memory contradicts, contradicts, or is mutually exclusive with the target memory. |
 | `relates_to` | Generic association when no semantic type above applies. Use sparingly. |
 
-### 3.3 Write-Time Validation Schema
+### 4.3 Write-Time Validation Schema
 
 Before every `memory_store` call, validate:
 
@@ -86,11 +119,11 @@ Before every `memory_link` call, validate:
 - [ ] `type` is from the prescribed vocabulary above
 - [ ] The relationship is semantically meaningful, not arbitrary
 
-## 4. Phase 2: Passive Reads — Four-Dimensional Query Composition
+## 5. Phase 2: Passive Reads — Four-Dimensional Query Composition
 
 To retrieve memories with maximum accuracy, compose queries across the four dimensions using this deterministic decision tree.
 
-### 4.1 Dimension Selection Decision Tree
+### 5.1 Dimension Selection Decision Tree
 
 ```
 START memory_query construction
@@ -128,7 +161,7 @@ START memory_query construction
 └── ALWAYS include Focus when operational context is stable
 ```
 
-### 4.2 Focus Management Protocol
+### 5.2 Focus Management Protocol
 
 1. **Set focus on task switch**: When you begin a new task, file, or project, construct a Focus map:
    ```json
@@ -144,7 +177,7 @@ START memory_query construction
 4. **Understand the multiplier effect**: Focus boosts matching memories by up to +50%. It does **NOT** remove non-matching memories. You still see cross-domain memories; yours float higher.
 5. **Minimum viable focus**: `agent` is required. Include `project` whenever known.
 
-### 4.3 Query Parameter Defaults
+### 5.3 Query Parameter Defaults
 
 | Parameter | Default | Override Guidance |
 |---|---|---|
@@ -153,18 +186,18 @@ START memory_query construction
 | `rel_depth` | 1 | Increase to 2 only when exploring graph neighborhoods. |
 | `similar_threshold` | 0.0 (no minimum) | Set to 0.3+ to filter noise. Set to 0.7+ for strict matches. |
 
-## 5. Phase 3: Result Interpretation & Follow-Up Actions
+## 6. Phase 3: Result Interpretation & Follow-Up Actions
 
 After receiving `memory_query` results, follow this deterministic protocol:
 
-### 5.1 Results Are Non-Empty
+### 6.1 Results Are Non-Empty
 
 1. **Read top 3 results** for relevance. If the top result score is high and has links:
    - Traverse with `rel_from=<top_id>` and `rel_depth=1` to gather related context.
 2. **If results partially answer the query**: Formulate a more specific follow-up query (add context_filter, raise similar_threshold).
 3. **If new insights emerge**: Store a **derived summary memory** with `derived_from` links to the source memories.
 
-### 5.2 Results Are Empty — Progressive Relaxation Protocol
+### 6.2 Results Are Empty — Progressive Relaxation Protocol
 
 Execute these steps **in order**, stopping when results are non-empty:
 
@@ -178,9 +211,9 @@ If all steps yield empty results, the memory likely does not exist. Do not hallu
 - Ask the user for clarification, or
 - Store the query as a new "information gap" memory for future resolution.
 
-## 6. Tool Call Schemas
+## 7. Tool Call Schemas
 
-### 6.1 memory_store
+### 7.1 memory_store
 
 Store a new atomic memory.
 
@@ -207,7 +240,7 @@ Store a new atomic memory.
 }
 ```
 
-### 6.2 memory_query
+### 7.2 memory_query
 
 Query across all four dimensions. All fields are optional; omitting a dimension means "do not filter on this dimension."
 
@@ -242,7 +275,7 @@ Query across all four dimensions. All fields are optional; omitting a dimension 
 }
 ```
 
-### 6.3 memory_link
+### 7.3 memory_link
 
 Create a unidirected relationship between two memories.
 
@@ -259,7 +292,7 @@ Create a unidirected relationship between two memories.
 { "success": true | false }
 ```
 
-## 7. Error Handling & Circuit Breakers
+## 8. Error Handling & Circuit Breakers
 
 | Failure Mode | Response |
 |--------------|----------|
@@ -273,7 +306,7 @@ Create a unidirected relationship between two memories.
 - Max 2 retries per tool call.
 - Never enter an infinite query loop. If results are empty after 3 query variations, stop.
 
-## 8. Few-Shot Examples
+## 9. Few-Shot Examples
 
 ### Example A: Complex Observation Decomposition
 
@@ -356,7 +389,7 @@ Create a unidirected relationship between two memories.
 { "context_filter": { "agent": "ui-bot", "project": "dashboard" }, "limit": 50 }
 ```
 
-## 9. Anti-Patterns (Explicitly Forbidden)
+## 10. Anti-Patterns (Explicitly Forbidden)
 
 | Anti-Pattern | Why It Fails | Correct Alternative |
 |--------------|--------------|---------------------|
@@ -370,12 +403,12 @@ Create a unidirected relationship between two memories.
 | Ignoring progressive relaxation on empty results | Assumes memory doesn't exist when it might be slightly mis-tagged | Systematically relax constraints |
 | Storing contradictory facts without `conflicts` links | Creates inconsistent memory graph | Use `conflicts` to mark contradictory memories |
 
-## 10. Evaluation Criteria (EDD)
+## 11. Evaluation Criteria (EDD)
 
 This skill is validated against the following layered metrics:
 
 ### Reasoning Layer
-- **PlanAdherence**: Does the agent follow Decomposition → Store → Link → Query in the correct order?
+- **PlanAdherence**: Does the agent follow Bootstrap → Decomposition → Store → Link → Query in the correct order?
 - **FocusManagement**: Does the agent set, maintain, and pass focus appropriately across the session?
 
 ### Action Layer
