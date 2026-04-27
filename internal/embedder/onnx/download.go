@@ -76,13 +76,9 @@ func downloadFile(client *http.Client, path, url string) error {
 	return os.Rename(tmpPath, path)
 }
 
-// DefaultModelURL returns a known-good ONNX model URL for all-MiniLM-L6-v2.
+// DefaultModelURL is a known-good ONNX model URL for all-MiniLM-L6-v2.
 // This points to a community ONNX export on HuggingFace.
-func DefaultModelURL() string {
-	return "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx"
-}
+const DefaultModelURL = "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx"
 
-// DefaultVocabURL returns the vocab.txt URL for all-MiniLM-L6-v2.
-func DefaultVocabURL() string {
-	return "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt"
-}
+// DefaultVocabURL is the vocab.txt URL for all-MiniLM-L6-v2.
+const DefaultVocabURL = "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt"

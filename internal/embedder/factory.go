@@ -47,10 +47,10 @@ func newONNXFromConfig() (engram.Embedder, error) {
 			modelURL := viper.GetString("embedder.onnx.model_url")
 			vocabURL := viper.GetString("embedder.onnx.vocab_url")
 			if modelURL == "" {
-				modelURL = onnx.DefaultModelURL()
+				modelURL = onnx.DefaultModelURL
 			}
 			if vocabURL == "" {
-				vocabURL = onnx.DefaultVocabURL()
+				vocabURL = onnx.DefaultVocabURL
 			}
 			if err := onnx.DownloadModel(onnx.DefaultModelDir(), modelURL, vocabURL); err != nil {
 				return nil, fmt.Errorf("auto-download model failed: %w", err)
