@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
+
+	stdlibhttp "github.com/andrewhowdencom/stdlib/http"
 )
 
 // DownloadModel fetches a remote model and vocab file into dir.
@@ -15,20 +18,30 @@ func DownloadModel(dir, modelURL, vocabURL string) error {
 		return fmt.Errorf("create model dir: %w", err)
 	}
 
+	// Use the stdlib HTTP client with longer timeouts for large model downloads.
+	client, err := stdlibhttp.NewClient(
+		stdlibhttp.WithTimeout(5*time.Minute),
+		stdlibhttp.WithConnectTimeout(10*time.Second),
+		stdlibhttp.WithResponseHeaderTimeout(30*time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("create http client: %w", err)
+	}
+
 	modelPath := filepath.Join(dir, "model.onnx")
 	vocabPath := filepath.Join(dir, "vocab.txt")
 
-	if err := downloadFile(modelPath, modelURL); err != nil {
+	if err := downloadFile(client, modelPath, modelURL); err != nil {
 		return fmt.Errorf("download model: %w", err)
 	}
-	if err := downloadFile(vocabPath, vocabURL); err != nil {
+	if err := downloadFile(client, vocabPath, vocabURL); err != nil {
 		return fmt.Errorf("download vocab: %w", err)
 	}
 
 	return nil
 }
 
-func downloadFile(path, url string) error {
+func downloadFile(client *http.Client, path, url string) error {
 	if _, err := os.Stat(path); err == nil {
 		return nil // already exists
 	}
@@ -42,7 +55,7 @@ func downloadFile(path, url string) error {
 	defer func() { _ = os.Remove(tmpPath) }()
 
 	//nolint:gosec // url is a known model download endpoint, validated by caller.
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
