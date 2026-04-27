@@ -18,19 +18,25 @@ import (
 // Fake implementation
 // ---------------------------------------------------------------------------
 
-// FakeStore is a query-capable in-memory store pre-loaded with rich sample data.
+// FakeStore is a query-capable in-memory store pre-loaded with sample data.
 // Writes (Put, Link) are saved to a JSON file if persistPath is set.
 type FakeStore struct {
 	memories    map[string]engram.Memory
 	persistPath string
+	embedder    engram.Embedder
 }
 
 // NewFakeStore creates a FakeStore loaded with sample memories.
 // Data is ephemeral (lost on process exit) unless you also call
 // fs.SetPersistPath and the store was not loaded from disk.
-func NewFakeStore() *FakeStore {
+func NewFakeStore(opts ...Option) *FakeStore {
+	var cfg storeConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
 	fs := &FakeStore{
 		memories: make(map[string]engram.Memory),
+		embedder: cfg.embedder,
 	}
 	fs.seed()
 	return fs
@@ -38,10 +44,15 @@ func NewFakeStore() *FakeStore {
 
 // NewFakeStoreWithPath creates a FakeStore that attempts to load existing
 // state from path. If the file does not exist it seeds sample data.
-func NewFakeStoreWithPath(path string) (*FakeStore, error) {
+func NewFakeStoreWithPath(path string, opts ...Option) (*FakeStore, error) {
+	var cfg storeConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
 	fs := &FakeStore{
 		memories:    make(map[string]engram.Memory),
 		persistPath: path,
+		embedder:    cfg.embedder,
 	}
 	if err := fs.load(); err != nil {
 		if !os.IsNotExist(err) {
@@ -169,13 +180,24 @@ func (fs *FakeStore) seed() {
 }
 
 // Put stores a memory in the fake store and persists if a path is set.
-func (fs *FakeStore) Put(_ context.Context, m engram.Memory) (engram.Memory, error) {
+// If an embedder is configured and the memory has no embedding, one is
+// generated automatically.
+func (fs *FakeStore) Put(ctx context.Context, m engram.Memory) (engram.Memory, error) {
 	if m.ID == "" {
 		m.ID = fmt.Sprintf("mem-%d", time.Now().UnixNano())
 	}
 	m.CreatedAt = time.Now()
 	m.UpdatedAt = m.CreatedAt
 	m.AccessedAt = m.CreatedAt
+
+	if fs.embedder != nil && len(m.Embedding) == 0 && len(m.Content) > 0 {
+		emb, err := fs.embedder.Embed(ctx, string(m.Content))
+		if err != nil {
+			return m, fmt.Errorf("embed memory: %w", err)
+		}
+		m.Embedding = emb
+	}
+
 	fs.memories[m.ID] = m
 	if err := fs.save(); err != nil {
 		return m, fmt.Errorf("store failed to persist: %w", err)
@@ -183,12 +205,12 @@ func (fs *FakeStore) Put(_ context.Context, m engram.Memory) (engram.Memory, err
 	return m, nil
 }
 
-// Query retrieves memories from the fake store, ranked by composite relevance.
+// Query retrieves memories matching hard filters. Results are returned
+// unranked; scoring is the responsibility of the caller.
 func (fs *FakeStore) Query(_ context.Context, q engram.Query) ([]engram.Memory, error) {
-	var results []scoredMemory
+	var results []engram.Memory
 	for _, mem := range fs.memories {
-		// Relationship filter: if a relationship query is set, we only
-		// include memories reachable within Depth from FromID.
+		// Relationship filter
 		if q.Relationship != nil && q.Relationship.FromID != "" {
 			if !fs.reachable(mem.ID, q.Relationship.FromID, q.Relationship.Type, q.Relationship.Depth) {
 				continue
@@ -203,13 +225,10 @@ func (fs *FakeStore) Query(_ context.Context, q engram.Query) ([]engram.Memory, 
 				continue
 			}
 		}
-		score := engram.Score(mem, q, q.Focus)
-		if score > 0 {
-			results = append(results, scoredMemory{mem: mem, score: score})
-		}
+		results = append(results, mem)
 	}
 
-	// Sort by score descending
+	// Apply ordering without scoring.
 	order := "relevance"
 	if q.Temporal != nil && q.Temporal.OrderBy != "" {
 		order = q.Temporal.OrderBy
@@ -217,32 +236,16 @@ func (fs *FakeStore) Query(_ context.Context, q engram.Query) ([]engram.Memory, 
 	sort.Slice(results, func(i, j int) bool {
 		switch order {
 		case "recency":
-			return results[i].mem.CreatedAt.After(results[j].mem.CreatedAt)
+			return results[i].CreatedAt.After(results[j].CreatedAt)
 		case "created":
-			return results[i].mem.CreatedAt.Before(results[j].mem.CreatedAt)
+			return results[i].CreatedAt.Before(results[j].CreatedAt)
 		default:
-			return results[i].score > results[j].score
+			return results[i].CreatedAt.After(results[j].CreatedAt) // default to recency when no scoring
 		}
 	})
 
-	limit := q.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	if len(results) > limit {
-		results = results[:limit]
-	}
-
-	out := make([]engram.Memory, len(results))
-	for i, sm := range results {
-		out[i] = sm.mem
-	}
-	return out, nil
-}
-
-type scoredMemory struct {
-	mem   engram.Memory
-	score float64
+	// No limit here — the Searcher will apply it after scoring.
+	return results, nil
 }
 
 func (fs *FakeStore) reachable(target, origin, linkType string, depth int) bool {
