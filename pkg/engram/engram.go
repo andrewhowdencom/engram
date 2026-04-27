@@ -17,6 +17,20 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// Embedder interface
+// ---------------------------------------------------------------------------
+
+// Embedder converts text into a dense vector representation.
+// Implementations are responsible for their own model lifecycle,
+// tokenisation, and normalisation. engram stores the resulting
+// vectors but does not prescribe their dimensionality or scale.
+type Embedder interface {
+	// Embed converts text into a dense vector.
+	// The returned slice must be safe for the caller to retain.
+	Embed(ctx context.Context, text string) ([]float32, error)
+}
+
+// ---------------------------------------------------------------------------
 // Core types
 // ---------------------------------------------------------------------------
 
@@ -111,7 +125,17 @@ type Store interface {
 
 // Score computes a composite relevance score for a memory against a query
 // and optional agent-managed focus. Higher is better. The score is in the range [0, 1].
+//
+// Score uses the legacy token-overlap similarity. For real vector similarity,
+// use ScoreWithEmbedding with a pre-computed query embedding.
 func Score(m Memory, q Query, focus *Focus) float64 {
+	return ScoreWithEmbedding(m, q, focus, nil)
+}
+
+// ScoreWithEmbedding computes composite relevance using real vector similarity
+// when queryEmb is non-nil. If queryEmb is nil or the memory has no embedding,
+// it falls back to the token-overlap approximation.
+func ScoreWithEmbedding(m Memory, q Query, focus *Focus, queryEmb []float32) float64 {
 	var score float64
 
 	// Context match component (0 - 0.3)
@@ -121,7 +145,11 @@ func Score(m Memory, q Query, focus *Focus) float64 {
 
 	// Similarity component (0 - 0.3)
 	if q.Similarity != nil {
-		score += similarityScore(m, q.Similarity) * 0.3
+		if len(queryEmb) > 0 && len(m.Embedding) > 0 {
+			score += float64(CosineSimilarity(queryEmb, m.Embedding)) * 0.3
+		} else {
+			score += similarityScore(m, q.Similarity) * 0.3
+		}
 	}
 
 	// Relationship proximity (0 - 0.2)
@@ -233,7 +261,7 @@ func focusScore(m Memory, f *Focus) float64 {
 	}
 	var embeddingBoost float64
 	if len(f.Embedding) > 0 && len(m.Embedding) > 0 {
-		embeddingBoost = float64(cosineSimilarity(f.Embedding, m.Embedding))
+		embeddingBoost = float64(CosineSimilarity(f.Embedding, m.Embedding))
 	}
 	// Combine: max of the two, so either context overlap OR embedding
 	// similarity can provide a boost.
@@ -263,7 +291,9 @@ func tokenize(s string) []string {
 	return out
 }
 
-func cosineSimilarity(a, b []float32) float32 {
+// CosineSimilarity returns the cosine similarity of two vectors.
+// Vectors must have the same length; otherwise the result is 0.
+func CosineSimilarity(a, b []float32) float32 {
 	if len(a) != len(b) {
 		return 0
 	}

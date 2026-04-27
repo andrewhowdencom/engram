@@ -9,6 +9,8 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/andrewhowdencom/engram/internal/config"
+	"github.com/andrewhowdencom/engram/internal/embedder"
+	"github.com/andrewhowdencom/engram/internal/search"
 	istore "github.com/andrewhowdencom/engram/internal/store"
 	"github.com/andrewhowdencom/engram/pkg/engram"
 	"github.com/spf13/cobra"
@@ -45,13 +47,21 @@ func NewRootCmd() *cobra.Command {
 				return fmt.Errorf("failed to load configuration: %w", err)
 			}
 
+			// Initialise embedder from configuration.
+			em, err := embedder.NewFromConfig()
+			if err != nil {
+				return fmt.Errorf("failed to initialise embedder: %w", err)
+			}
+
 			// Initialise the SQLite-backed store.
 			persistPath := filepath.Join(xdg.DataHome, "engram", "engram.db")
-			var err error
-			store, err = istore.NewSQLiteStore(persistPath)
+			st, err := istore.NewSQLiteStore(persistPath, istore.WithEmbedder(em))
 			if err != nil {
 				return fmt.Errorf("failed to initialise store: %w", err)
 			}
+
+			// Wrap with embedding-aware searcher.
+			store = search.NewSearcher(st, em)
 
 			return nil
 		},

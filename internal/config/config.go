@@ -39,6 +39,8 @@ func Load(_ interface{}) error {
 
 	// Defaults.
 	v.SetDefault("log.level", "info")
+	v.SetDefault("embedder.type", "noop")
+	v.SetDefault("embedder.onnx.auto_download", true)
 
 	// Read file if present; ignore missing.
 	if err := v.ReadInConfig(); err != nil {

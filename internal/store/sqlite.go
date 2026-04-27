@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -18,12 +17,18 @@ import (
 
 // SQLiteStore is an ACID persistent Store backed by SQLite.
 type SQLiteStore struct {
-	db *sql.DB
+	db       *sql.DB
+	embedder engram.Embedder
 }
 
 // NewSQLiteStore opens (and optionally creates) a SQLite-backed engram store.
 // It enables WAL mode and foreign key enforcement.
-func NewSQLiteStore(path string) (*SQLiteStore, error) {
+func NewSQLiteStore(path string, opts ...Option) (*SQLiteStore, error) {
+	var cfg storeConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, fmt.Errorf("create data dir: %w", err)
 	}
@@ -37,7 +42,7 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
 
-	s := &SQLiteStore{db: db}
+	s := &SQLiteStore{db: db, embedder: cfg.embedder}
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
@@ -82,6 +87,8 @@ func (s *SQLiteStore) migrate() error {
 }
 
 // Put stores a new memory (or replaces an existing one with the same ID).
+// If an embedder is configured and the memory has no embedding, one is
+// generated automatically.
 func (s *SQLiteStore) Put(ctx context.Context, m engram.Memory) (engram.Memory, error) {
 	if m.ID == "" {
 		m.ID = fmt.Sprintf("mem-%d", time.Now().UnixNano())
@@ -91,11 +98,20 @@ func (s *SQLiteStore) Put(ctx context.Context, m engram.Memory) (engram.Memory, 
 	m.UpdatedAt = now
 	m.AccessedAt = now
 
+	// Auto-generate embedding if missing.
+	if s.embedder != nil && len(m.Embedding) == 0 && len(m.Content) > 0 {
+		emb, err := s.embedder.Embed(ctx, string(m.Content))
+		if err != nil {
+			return m, fmt.Errorf("embed memory: %w", err)
+		}
+		m.Embedding = emb
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return m, fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Upsert memory row.
 	_, err = tx.ExecContext(ctx, `
@@ -148,9 +164,10 @@ func (s *SQLiteStore) Put(ctx context.Context, m engram.Memory) (engram.Memory, 
 	return m, nil
 }
 
-// Query retrieves memories matching the query, ranked by composite relevance.
+// Query retrieves all memories that satisfy the hard filters (temporal,
+// context, relationship). Results are returned unranked; scoring is the
+// responsibility of the caller (e.g. search.Searcher).
 func (s *SQLiteStore) Query(ctx context.Context, q engram.Query) ([]engram.Memory, error) {
-	// Step 1: build the list of candidate IDs using hard SQL filters.
 	candidateIDs, err := s.filteredIDs(ctx, q)
 	if err != nil {
 		return nil, err
@@ -158,50 +175,7 @@ func (s *SQLiteStore) Query(ctx context.Context, q engram.Query) ([]engram.Memor
 	if len(candidateIDs) == 0 {
 		return nil, nil
 	}
-
-	// Step 2: hydrate full Memory structs for the candidates.
-	memories, err := s.hydrateMemories(ctx, candidateIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 3: score and rank in Go.
-	var results []scoredMemory
-	for _, mem := range memories {
-		score := engram.Score(mem, q, q.Focus)
-		if score > 0 {
-			results = append(results, scoredMemory{mem: mem, score: score})
-		}
-	}
-
-	order := "relevance"
-	if q.Temporal != nil && q.Temporal.OrderBy != "" {
-		order = q.Temporal.OrderBy
-	}
-	sort.Slice(results, func(i, j int) bool {
-		switch order {
-		case "recency":
-			return results[i].mem.CreatedAt.After(results[j].mem.CreatedAt)
-		case "created":
-			return results[i].mem.CreatedAt.Before(results[j].mem.CreatedAt)
-		default:
-			return results[i].score > results[j].score
-		}
-	})
-
-	limit := q.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	if len(results) > limit {
-		results = results[:limit]
-	}
-
-	out := make([]engram.Memory, len(results))
-	for i, sm := range results {
-		out[i] = sm.mem
-	}
-	return out, nil
+	return s.hydrateMemories(ctx, candidateIDs)
 }
 
 // filteredIDs returns memory IDs that satisfy the hard filters
@@ -260,7 +234,7 @@ func (s *SQLiteStore) filteredIDs(ctx context.Context, q engram.Query) ([]string
 	if err != nil {
 		return nil, fmt.Errorf("filter query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []string
 	for rows.Next() {
@@ -313,7 +287,7 @@ func (s *SQLiteStore) reachableIDs(ctx context.Context, origin, linkType string,
 	if err != nil {
 		return nil, fmt.Errorf("reachability cte: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []string
 	for rows.Next() {
@@ -339,6 +313,7 @@ func (s *SQLiteStore) hydrateMemories(ctx context.Context, ids []string) ([]engr
 		args[i] = id
 	}
 
+	//nolint:gosec // Only ? placeholders are injected via Sprintf; all values are passed as args.
 	query := fmt.Sprintf(`
 		SELECT
 			m.id,
@@ -358,7 +333,7 @@ func (s *SQLiteStore) hydrateMemories(ctx context.Context, ids []string) ([]engr
 	if err != nil {
 		return nil, fmt.Errorf("hydrate query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var memories []engram.Memory
 	for rows.Next() {
@@ -401,7 +376,7 @@ func (s *SQLiteStore) Link(ctx context.Context, from, to, linkType string) error
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var count int
 	if err := tx.QueryRowContext(ctx,
